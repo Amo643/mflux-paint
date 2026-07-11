@@ -1,6 +1,6 @@
 #!/bin/bash
 # Launch the native desktop app (pywebview window + local server in one process).
-DIR="$HOME/Desktop/codes/mflux-paint"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR" || exit 1
 # already running? bring the window to front instead of starting a second instance.
 if /usr/bin/curl -s -o /dev/null --max-time 2 "http://localhost:7866/alive"; then

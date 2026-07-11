@@ -4,7 +4,7 @@ No torch. Shells out to mflux CLIs. Model registry covers whole-image edit,
 true inpaint (fill) and text-to-image, each with a different mflux CLI shape.
 Saved prompts, save-to-folder, model picker, multi-seed batches.
 """
-import base64, glob, http.server, io, json, os, re, subprocess, tempfile, socketserver, threading, time, urllib.parse
+import base64, glob, http.server, io, json, os, re, shutil, subprocess, tempfile, socketserver, threading, time, urllib.parse
 from PIL import Image, ImageFilter
 
 # auto-shutdown: the open page pings /alive; no ping for IDLE_TIMEOUT -> exit.
@@ -27,7 +27,11 @@ PORT = 7866
 SAVE_DIR = os.path.expanduser("~/Pictures/mflux-paint")
 CFG_DIR  = os.path.expanduser("~/.mflux-paint")
 PROMPTS_FILE = os.path.join(CFG_DIR, "prompts.json")
-BIN = "/opt/homebrew/bin"
+# auto-detect where `uv tool install mflux` / pipx put the mflux-generate-* binaries,
+# falling back to the Homebrew default if they're not on PATH (e.g. launched from a
+# GUI context that doesn't inherit the shell's PATH).
+_mflux_bin = shutil.which("mflux-generate")
+BIN = os.path.dirname(_mflux_bin) if _mflux_bin else "/opt/homebrew/bin"
 
 # --- model registry -------------------------------------------------------------
 # "shape" controls how the mflux CLI command is built (see build_cmd):

@@ -18,7 +18,7 @@ A single-screen inpaint/edit UI for the [mflux](https://github.com/filipstrand/m
   ```
   uv tool install mflux
   ```
-  (or `pipx install mflux`) — installs `mflux-generate`, `mflux-generate-flux2-edit`, `mflux-generate-fill`, etc. into your PATH. This app shells out to those binaries directly (default: `/opt/homebrew/bin/mflux-generate-*` — edit `BIN` in `server.py` if yours live elsewhere).
+  (or `pipx install mflux`) — installs `mflux-generate`, `mflux-generate-flux2-edit`, `mflux-generate-fill`, etc. into your PATH. This app shells out to those binaries directly — it auto-detects where they live via PATH, falling back to `/opt/homebrew/bin` if `mflux-generate` isn't found (e.g. launched from a context that doesn't inherit your shell's PATH); edit `BIN` in `server.py` if you need to override it.
 
 ## Install
 
