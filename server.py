@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mflux-paint: IOPaint-style single-screen inpaint/edit UI on the mflux engine.
+"""mflux-paint: single-screen inpaint/edit UI on the mflux engine.
 No torch. Shells out to mflux CLIs. Model registry covers whole-image edit,
 true inpaint (fill) and text-to-image, each with a different mflux CLI shape.
 Saved prompts, save-to-folder, model picker, multi-seed batches.
