@@ -1,10 +1,10 @@
 #!/bin/bash
-DIR="$HOME/Desktop/codes/mflux-paint"; PORT=7866; URL="http://localhost:$PORT"; LOG="$DIR/server.log"
-up(){ /usr/bin/curl -s -o /dev/null --max-time 2 "$URL"; }
-openui(){ if [ -d "/Applications/Google Chrome.app" ]; then
-  /usr/bin/open -na "Google Chrome" --args --app="$URL" --window-size=1280,860; else /usr/bin/open "$URL"; fi; }
-if up; then openui; exit 0; fi
+# Launch the native desktop app (pywebview window + local server in one process).
+DIR="$HOME/Desktop/codes/mflux-paint"
 cd "$DIR" || exit 1
-/usr/bin/nohup "$DIR/.venv/bin/python" "$DIR/server.py" >"$LOG" 2>&1 &
-for i in $(seq 1 30); do up && { openui; exit 0; }; sleep 1; done
-/usr/bin/open -t "$LOG"; exit 1
+# already running? bring the window to front instead of starting a second instance.
+if /usr/bin/curl -s -o /dev/null --max-time 2 "http://localhost:7866/alive"; then
+  /usr/bin/osascript -e 'tell application "System Events" to set frontmost of (first process whose name is "Python") to true' 2>/dev/null
+  exit 0
+fi
+exec "$DIR/.venv/bin/python" "$DIR/desktop.py"
