@@ -1,24 +1,21 @@
-<img src="assets/icon.png" width="88" height="88" align="left" alt="">
-
 # mflux-paint
 
-A single-screen inpaint/edit UI for the [mflux](https://github.com/filipstrand/mflux) engine — 16 FLUX/Qwen/FIBO/Z-Image/ERNIE/Ideogram models, whole-image edit, true inpainting, and text-to-image, all running fully local on Apple Silicon via MLX. No PyTorch, no cloud. Independent project, not affiliated with or based on IOPaint.
+<img src="assets/icon.png" width="72" height="72" alt="">
 
-<br clear="left">
+Local, single-screen inpaint/edit UI for the [mflux](https://github.com/filipstrand/mflux) engine — 16 FLUX/Qwen/FIBO/Z-Image/ERNIE/Ideogram models on Apple Silicon via MLX. No PyTorch, no cloud. Independent project, not affiliated with IOPaint.
 
-![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform: macOS Apple Silicon](https://img.shields.io/badge/platform-macOS%20%7C%20Apple%20Silicon-lightgrey) ![No cloud](https://img.shields.io/badge/inference-100%25%20local-success)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![macOS Apple Silicon](https://img.shields.io/badge/platform-macOS%20%7C%20Apple%20Silicon-lightgrey)
 
 ![screenshot](docs/screenshot.png)
 
 ## Requirements
 
-- macOS, Apple Silicon
-- Python 3.9+
-- [mflux](https://github.com/filipstrand/mflux) CLI tools:
+- macOS, Apple Silicon, Python 3.9+
+- [mflux](https://github.com/filipstrand/mflux):
   ```
   uv tool install mflux
   ```
-  (or `pipx install mflux`) — installs `mflux-generate`, `mflux-generate-flux2-edit`, `mflux-generate-fill`, etc. into your PATH. This app shells out to those binaries directly — it auto-detects where they live via PATH, falling back to `/opt/homebrew/bin` if `mflux-generate` isn't found (e.g. launched from a context that doesn't inherit your shell's PATH); edit `BIN` in `server.py` if you need to override it.
+  (or `pipx install mflux`) — installs `mflux-generate-*` into your PATH. This app shells out to those binaries directly and auto-detects where they live; edit `BIN` in `server.py` only if it can't find them.
 
 ## Install
 
@@ -31,71 +28,72 @@ python3 -m venv .venv
 
 ## Usage
 
-### Desktop app
-
+**Desktop app** — a real native window, no browser:
 ```bash
 ./launch.sh
 ```
-This is the "turn it into a desktop app" path: `desktop.py` starts `server.py` in a background thread, then opens it in a real native window via [pywebview](https://pywebview.flowrl.com/) (WKWebView on macOS — no Chrome/Electron involved). It looks and behaves like a normal Mac app: its own window, its own Dock/Cmd-Tab entry, closing the window kills the server with it. `launch.sh` first checks `:7866/alive`; if the app is already running it just refocuses that window instead of opening a second one, so it's safe to run repeatedly (e.g. bind it to a Dock icon, Spotlight, or `alias mpaint=~/Desktop/codes/mflux-paint/launch.sh`).
+`desktop.py` runs `server.py` in the background and opens it via [pywebview](https://pywebview.flowrl.com/) (WKWebView, no Chrome/Electron). Own window, own Dock icon, closes with the window. Running `launch.sh` again just refocuses it instead of opening a second copy.
 
-Want an actual double-clickable `.app` bundle (Finder/Dock/Launchpad, no terminal)? Wrap `launch.sh` with [Platypus](https://sveinbjorn.org/platypus) (`platypus -a "mflux paint" -i assets/icon.icns launch.sh`) or a one-file Automator "Run Shell Script" app — `desktop.py` itself doesn't need to change, it already behaves like a standalone app once launched, Dock icon included (`assets/icon.icns` is ready to use for the bundle icon too).
+For a double-clickable `.app` (no terminal), wrap it with [Platypus](https://sveinbjorn.org/platypus): `platypus -a "mflux paint" -i assets/icon.icns launch.sh`.
 
-### Browser mode
-
-For remote/headless use, or if you don't want the native window:
+**Browser mode** — for remote/headless use:
 ```bash
 python3 server.py
 ```
-then open `http://localhost:7866`. In this mode the server auto-exits after 20s with no page pinging it (set `MFLUX_NO_IDLE=1` to disable).
+then open `http://localhost:7866`. Auto-exits after 20s idle (`MFLUX_NO_IDLE=1` to disable).
 
 ## Features
 
-- Brush / eraser / box-select mask painting, undo/redo, invert, hide/show
-- Whole-image edit, true inpaint (fill), and text-to-image, depending on model
-- Live per-step progress (parsed straight from mflux's own output), cancel mid-run
-- **Multi-seed batch**: comma-separate seeds in the Seed field (e.g. `111,222,333`) to run one prompt against several seeds in a single job — mflux writes one file per seed natively, the app collects all of them and shows a thumbnail strip after the run so you click the one you want as the new base image. Leave it blank for a single random seed as usual.
-- Negative prompt (hidden automatically for FLUX.2 models — they reject the flag outright), quantization (3/4/5/6/8-bit), custom resolution
-- Saved/starred prompts, chain edits (each result becomes the next base image), compare-to-original (hold `C`), revert
-- Copy to clipboard, save to a folder, download
+- Brush / eraser / box-select masking, undo/redo, invert, hide/show
+- Whole-image edit, true inpaint, or text-to-image, depending on model
+- Live per-step progress, cancel mid-run
+- Multi-seed batch — comma-separate seeds (`111,222,333`) to generate several variations in one run and pick the best
+- Negative prompt, quantization (3–8 bit), custom resolution
+- Saved prompts, chained edits, compare-to-original (hold `C`), revert, copy/save/download
 
-Full shortcut list is in the app itself (`?` key).
+Full shortcut list is in the app (`?` key).
 
 ## Models
 
-| Model | Category | Tested? |
+16 models across **Edit** / **Inpaint** / **Text-to-image**, picked via the model dropdown. ⬇ in the picker marks weights not yet downloaded (fetched automatically on first use, several GB, needs internet).
+
+| Status | Meaning |
+|---|---|
+| ✅ Tested | Ran for real this session — works |
+| ⚠️ Partial | Runs, but one setting (noted below) is unverified |
+| 🔴 Failed | Tried, hit an error — noted below |
+| ❌ Untested | Wired to match mflux's `--help`, never actually run (no internet available while building this) |
+
+| Model | Category | Status |
 |---|---|---|
-| FLUX.2 Klein-4B — fast edit | Edit | ✅ verified — real edits, multi-seed batch, cancel |
-| FLUX.2 Klein-9B — quality edit | Edit | ⚠️ works, but `gen_max` (resolution cap) unverified against the real 9B weights |
-| Qwen-Image-Edit | Edit | ❌ untested — wired per `--help`, not run |
-| FLUX.1 Kontext — image edit | Edit | ❌ untested — wired per `--help`, not run |
-| Bria FIBO Edit | Edit | ❌ untested — wired per `--help`, not run |
-| FLUX.1 Fill — true inpaint | Inpaint | ❌ untested — wired per `--help`, not run |
-| FLUX.1 dev — text-to-image | Text-to-image | ❌ untested — wired per `--help`, not run |
-| FLUX.1 schnell — fast text-to-image | Text-to-image | 🔴 tried, failed — HF folder present but missing its VAE component; needs one more download |
-| FLUX.2 Klein-4B — text-to-image | Text-to-image | ✅ verified — real run |
-| Qwen-Image | Text-to-image | ❌ untested — wired per `--help`, not run |
-| Bria FIBO | Text-to-image | ❌ untested — wired per `--help`, not run |
-| Z-Image | Text-to-image | ❌ untested — wired per `--help`, not run |
-| Z-Image Turbo | Text-to-image | ❌ untested — wired per `--help`, not run |
-| ERNIE-Image | Text-to-image | ❌ untested — wired per `--help`, not run |
-| ERNIE-Image Turbo | Text-to-image | ❌ untested — wired per `--help`, not run |
-| Ideogram4 | Text-to-image | ❌ untested — wired per `--help`, not run |
+| FLUX.2 Klein-4B — fast edit | Edit | ✅ |
+| FLUX.2 Klein-9B — quality edit | Edit | ⚠️ `gen_max` resolution cap unverified against real 9B weights |
+| Qwen-Image-Edit | Edit | ❌ |
+| FLUX.1 Kontext — image edit | Edit | ❌ |
+| Bria FIBO Edit | Edit | ❌ |
+| FLUX.1 Fill — true inpaint | Inpaint | ❌ |
+| FLUX.1 dev | Text-to-image | ❌ |
+| FLUX.1 schnell | Text-to-image | 🔴 HF folder present but missing its VAE — needs one more download |
+| FLUX.2 Klein-4B | Text-to-image | ✅ |
+| Qwen-Image | Text-to-image | ❌ |
+| Bria FIBO | Text-to-image | ❌ |
+| Z-Image / Z-Image Turbo | Text-to-image | ❌ |
+| ERNIE-Image / ERNIE-Image Turbo | Text-to-image | ❌ |
+| Ideogram4 | Text-to-image | ❌ |
 
-"Untested" ones were built by matching each mflux subcommand's own `--help` output (right image-flag shape, right guidance/negative-prompt restrictions where discoverable) but never actually run — no internet was available to fetch their weights while this was built. The two bugs the testing *did* catch (FLUX.2 base rejecting any `--guidance` but 1.0, FLUX.2 rejecting `--negative-prompt` outright) suggest there are probably a couple more of these landmines hiding in the untested ones. Run one, hit an mflux argument error, and it's almost certainly a one-line fix in `MODELS` in `server.py` — the error message from mflux itself tells you exactly what's wrong.
+Testing already caught two real mflux argument quirks (FLUX.2 base only accepts `--guidance 1.0`; FLUX.2 rejects `--negative-prompt` entirely) — untested models likely hide a couple more. If one errors, the fix is almost always a one-line change to that model's entry in `MODELS` in `server.py`; mflux's own error message says exactly what's wrong.
 
-The model picker groups these into **Edit** / **Inpaint** / **Text-to-image** and marks not-yet-downloaded ones with ⬇ (separate from the tested/untested status above — a model can be downloaded and still not run right, see schnell).
+Steps/guidance for untested models are mflux's documented values where known, otherwise a generic FLUX.1-dev-style default (steps=20, guidance=3.5) or the standard fast/"turbo" convention (steps=4, guidance=0) — tune in Settings once you've run one for real.
 
-Steps/guidance defaults for anything beyond the verified models are mflux-documented values where confirmed (Fill's guidance=30 and FLUX.2's guidance=1.0-only-for-base come straight from mflux's own `--help`/error text), otherwise a generic FLUX.1-dev-family starting point (steps=20, guidance=3.5) or the standard distilled/"turbo" convention (steps=4, guidance=0) — tune in Settings once you've actually run one.
-
-Not included: ControlNet, Depth, Redux, in-context/concept tools, upscalers, and non-generation tools (train/save/lora-library) — they need control maps, depth maps, multiple reference images, or aren't image generation at all, so they don't fit this app's single-image + prompt + optional-mask flow.
+Not included: ControlNet, Depth, Redux, in-context/concept tools, upscalers, train/save/lora-library — they need control maps, depth maps, or multiple reference images, or aren't generation at all, so they don't fit this app's single-image + prompt + optional-mask flow.
 
 ## Project layout
 
-- `server.py` — local HTTP server + model registry + mflux subprocess orchestration
+- `server.py` — HTTP server, model registry, mflux subprocess orchestration
 - `index.html` — the entire frontend (single file, no build step)
-- `desktop.py` — native window wrapper (pywebview), sets the Dock icon from `assets/icon.png`
-- `launch.sh` — desktop app entry point / focus-existing-window
-- `assets/` — app icon (`icon.png`/`icon.icns`) and favicons
+- `desktop.py` — native window wrapper (pywebview)
+- `launch.sh` — desktop app entry point
+- `assets/` — app icon and favicons
 
 ## License
 
