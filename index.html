@@ -69,12 +69,6 @@
             border:1px solid var(--glassline); border-radius:12px; padding:0 14px; font-size:15px;
             transition:border-color .15s, box-shadow .15s; }
   #prompt:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px #5b93ff33; }
-  .seg { display:flex; border:1px solid var(--glassline); border-radius:12px; overflow:hidden; height:46px;
-         background:rgba(255,255,255,.04); }
-  .seg button { height:100%; padding:0 13px; border:0; background:transparent; cursor:pointer; transition:.12s; }
-  .seg button:hover { background:rgba(255,255,255,.06); }
-  .seg button.on { background:var(--accent); color:#fff; }
-  .seg + .seg, .seg button + button { }
   .toolbtn { height:46px; padding:0 14px; border:1px solid var(--glassline); background:rgba(255,255,255,.04);
              border-radius:12px; cursor:pointer; transition:.12s; }
   .toolbtn:hover { background:rgba(255,255,255,.08); }
@@ -411,17 +405,15 @@ async function loadModels(){
 $('#modelSel').onchange=e=>{ curModel=e.target.value; applyModelDefaults(); };
 
 /* ---------- image load ---------- */
-function loadImage(src, keepMask){
+function loadImage(src){
   hideBatchPick();
   const im=new Image();
   im.onload=()=>{
     view.width=draw.width=im.naturalWidth; view.height=draw.height=im.naturalHeight;
     vctx.drawImage(im,0,0);
-    if(!keepMask){
-      mask=document.createElement('canvas'); mask.width=im.naturalWidth; mask.height=im.naturalHeight;
-      mctx=mask.getContext('2d'); dctx.clearRect(0,0,draw.width,draw.height);
-      hasMask=false; history=[]; histAt=-1; pushHistory(); updateUndo();
-    }
+    mask=document.createElement('canvas'); mask.width=im.naturalWidth; mask.height=im.naturalHeight;
+    mctx=mask.getContext('2d'); dctx.clearRect(0,0,draw.width,draw.height);
+    hasMask=false; history=[]; histAt=-1; pushHistory(); updateUndo();
     imgW=im.naturalWidth; imgH=im.naturalHeight; updateAutoInfo();
     hasImage=true; resetT();
     $('#drop').classList.add('hide'); $('#wrap').classList.remove('hide');

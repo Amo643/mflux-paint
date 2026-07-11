@@ -162,7 +162,7 @@ MODELS = {
 # genuinely different UI, so half-wiring them in would just be a broken menu entry.
 
 def available_models():
-    return [{"id": k, "label": m["label"], "group": m["group"], "available": True,
+    return [{"id": k, "label": m["label"], "group": m["group"],
              "cached": m["cached"], "shape": m["shape"], "needs_mask": m["needs_mask"],
              "steps": m["steps"], "guidance": m["guidance"], "gen_max": m["gen_max"],
              "neg": m.get("neg", True)}
@@ -413,8 +413,9 @@ class H(http.server.BaseHTTPRequestHandler):
                 path = os.path.join(HERE, "assets", name)
                 if not os.path.isfile(path):
                     return self._send(404, b"not found", "text/plain")
+                ctype = "image/png" if name.endswith(".png") else "image/x-icns" if name.endswith(".icns") else "application/octet-stream"
                 with open(path, "rb") as f:
-                    self._send(200, f.read(), "image/png")
+                    self._send(200, f.read(), ctype)
             else:
                 self._send(404, b"not found", "text/plain")
         except Exception as e:
