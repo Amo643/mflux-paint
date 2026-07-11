@@ -1,10 +1,16 @@
+<div align="center">
+
+<img src="assets/icon.png" width="140" height="140" alt="">
+
 # mflux-paint
 
-<img src="assets/icon.png" width="72" height="72" alt="">
-
-Local, single-screen inpaint/edit UI for the [mflux](https://github.com/filipstrand/mflux) engine — 16 FLUX/Qwen/FIBO/Z-Image/ERNIE/Ideogram models on Apple Silicon via MLX. No PyTorch, no cloud. Independent project, not affiliated with IOPaint.
+Local FLUX inpaint/edit UI for Apple Silicon, powered by [mflux](https://github.com/filipstrand/mflux) (MLX). No PyTorch, no cloud.
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![macOS Apple Silicon](https://img.shields.io/badge/platform-macOS%20%7C%20Apple%20Silicon-lightgrey)
+
+Independent project, not affiliated with IOPaint.
+
+</div>
 
 ![screenshot](docs/screenshot.png)
 
