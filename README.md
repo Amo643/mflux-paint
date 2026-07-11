@@ -99,6 +99,12 @@ Not included: ControlNet, Depth, Redux, in-context/concept tools, upscalers, tra
 - `launch.sh` — desktop app entry point
 - `assets/` — app icon and favicons
 
+## Acknowledgments
+
+- [mflux](https://github.com/filipstrand/mflux) — the MLX engine this app shells out to for every generation
+- [pywebview](https://pywebview.flowrl.com/) — native desktop window
+- [Pillow](https://python-pillow.org/) — image handling
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
