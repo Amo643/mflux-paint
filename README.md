@@ -8,8 +8,6 @@ Local FLUX inpaint/edit UI for Apple Silicon, powered by [mflux](https://github.
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![macOS Apple Silicon](https://img.shields.io/badge/platform-macOS%20%7C%20Apple%20Silicon-lightgrey)
 
-Independent project, not affiliated with IOPaint.
-
 </div>
 
 ![screenshot](docs/screenshot.png)
