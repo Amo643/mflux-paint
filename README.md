@@ -1,6 +1,12 @@
+<img src="assets/icon.png" width="88" height="88" align="left" alt="">
+
 # mflux-paint
 
 A single-screen inpaint/edit UI for the [mflux](https://github.com/filipstrand/mflux) engine — 16 FLUX/Qwen/FIBO/Z-Image/ERNIE/Ideogram models, whole-image edit, true inpainting, and text-to-image, all running fully local on Apple Silicon via MLX. No PyTorch, no cloud. Independent project, not affiliated with or based on IOPaint.
+
+<br clear="left">
+
+![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform: macOS Apple Silicon](https://img.shields.io/badge/platform-macOS%20%7C%20Apple%20Silicon-lightgrey) ![No cloud](https://img.shields.io/badge/inference-100%25%20local-success)
 
 ![screenshot](docs/screenshot.png)
 
@@ -32,7 +38,7 @@ python3 -m venv .venv
 ```
 This is the "turn it into a desktop app" path: `desktop.py` starts `server.py` in a background thread, then opens it in a real native window via [pywebview](https://pywebview.flowrl.com/) (WKWebView on macOS — no Chrome/Electron involved). It looks and behaves like a normal Mac app: its own window, its own Dock/Cmd-Tab entry, closing the window kills the server with it. `launch.sh` first checks `:7866/alive`; if the app is already running it just refocuses that window instead of opening a second one, so it's safe to run repeatedly (e.g. bind it to a Dock icon, Spotlight, or `alias mpaint=~/Desktop/codes/mflux-paint/launch.sh`).
 
-Want an actual double-clickable `.app` bundle (Finder/Dock/Launchpad, no terminal)? Wrap `launch.sh` with [Platypus](https://sveinbjorn.org/platypus) (`platypus -a "mflux paint" launch.sh`) or a one-file Automator "Run Shell Script" app — `desktop.py` itself doesn't need to change, it already behaves like a standalone app once launched.
+Want an actual double-clickable `.app` bundle (Finder/Dock/Launchpad, no terminal)? Wrap `launch.sh` with [Platypus](https://sveinbjorn.org/platypus) (`platypus -a "mflux paint" -i assets/icon.icns launch.sh`) or a one-file Automator "Run Shell Script" app — `desktop.py` itself doesn't need to change, it already behaves like a standalone app once launched, Dock icon included (`assets/icon.icns` is ready to use for the bundle icon too).
 
 ### Browser mode
 
@@ -87,8 +93,9 @@ Not included: ControlNet, Depth, Redux, in-context/concept tools, upscalers, and
 
 - `server.py` — local HTTP server + model registry + mflux subprocess orchestration
 - `index.html` — the entire frontend (single file, no build step)
-- `desktop.py` — native window wrapper (pywebview)
+- `desktop.py` — native window wrapper (pywebview), sets the Dock icon from `assets/icon.png`
 - `launch.sh` — desktop app entry point / focus-existing-window
+- `assets/` — app icon (`icon.png`/`icon.icns`) and favicons
 
 ## License
 

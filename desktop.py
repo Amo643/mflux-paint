@@ -8,6 +8,9 @@ import os, threading, time, urllib.request
 import server
 import webview
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+ICON = os.path.join(HERE, "assets", "icon.png")
+
 def _serve():
     server.Server(("127.0.0.1", server.PORT), server.H).serve_forever()
 
@@ -24,4 +27,6 @@ if __name__ == "__main__":
     _wait_up()
     webview.create_window("mflux paint", f"http://localhost:{server.PORT}",
                           width=1280, height=860, min_size=(900, 600))
-    webview.start()   # blocks on the native window; returns when it closes -> process exits
+    # icon= sets the actual Dock icon on macOS (pywebview's Cocoa backend loads it via
+    # NSImage) - undocumented in create_window, only honored by webview.start().
+    webview.start(icon=ICON if os.path.exists(ICON) else None)   # blocks; returns on window close -> process exits

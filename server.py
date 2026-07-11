@@ -408,6 +408,13 @@ class H(http.server.BaseHTTPRequestHandler):
             elif self.path in ("/", "/index.html"):
                 with open(os.path.join(HERE, "index.html"), "rb") as f:
                     self._send(200, f.read(), "text/html; charset=utf-8")
+            elif self.path.startswith("/assets/"):
+                name = os.path.basename(self.path[len("/assets/"):])
+                path = os.path.join(HERE, "assets", name)
+                if not os.path.isfile(path):
+                    return self._send(404, b"not found", "text/plain")
+                with open(path, "rb") as f:
+                    self._send(200, f.read(), "image/png")
             else:
                 self._send(404, b"not found", "text/plain")
         except Exception as e:
