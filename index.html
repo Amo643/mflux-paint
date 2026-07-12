@@ -267,6 +267,8 @@
       </select></div>
     <div class="row"><label>Seed</label><input id="seed" type="text" placeholder="random, or 111,222 for a batch"></div>
     <div class="row"><label>Model path</label><input id="modelPath" type="text" placeholder="optional, local weights folder" title="Overrides the picked model's weights with a local folder you already downloaded"></div>
+    <button class="mini" id="saveCustomModel">＋ Save as model</button>
+    <button class="mini" id="removeCustomModel" style="display:none">🗑 Remove this custom model</button>
     <div class="hint" id="sizeHint">⚠ Large sizes in fill mode swap RAM (24GB) → much slower.</div>
     <div class="hint" id="maskHint">✎ Paint a mask first — Fill only regenerates the painted area (unmasked = whole image).</div>
     <div class="hint" id="dlHint">⬇ Not downloaded yet — first run fetches the weights (needs internet).</div>
@@ -379,7 +381,8 @@ function updateModeRows(){ const m=modelById(curModel); if(!m)return;
   $('#dimsRow').style.display = t2i?'':'none';
   $('#negRow').style.display = m.neg?'':'none';
   $('#maskHint').classList.toggle('on', !!m.needs_mask);
-  $('#dlHint').classList.toggle('on', !m.cached); }
+  $('#dlHint').classList.toggle('on', !m.cached);
+  $('#removeCustomModel').style.display = curModel.startsWith('custom:') ? '' : 'none'; }
 function updateRunEnabled(){ const m=modelById(curModel);
   $('#run').disabled = !(hasImage || (m && m.shape==='txt2img')); }
 $('#steps').oninput=$('#guid').oninput=syncSettingLabels;
@@ -387,6 +390,32 @@ $('#size').onchange=()=>{ updateSizeHint(); updateAutoInfo(); };
 $('#resetSettings').onclick=()=>{ applyModelDefaults(); $('#size').value='0'; $('#seed').value='';
   $('#negPrompt').value=''; $('#quant').value=''; $('#genW').value=1024; $('#genH').value=1024;
   $('#modelPath').value=''; updateAutoInfo(); };
+
+$('#saveCustomModel').onclick=async()=>{
+  const path=$('#modelPath').value.trim();
+  if(!path){ showErr('enter a model path first'); return; }
+  if(curModel.startsWith('custom:')){ showErr('pick a built-in model to base this on first'); return; }
+  const label=prompt('Name for this model:', modelById(curModel).label+' (local)');
+  if(!label) return;
+  try{
+    const r=await fetch('/custom-models'); const j=await r.json();
+    const list=j.models||[];
+    list.push({label, template:curModel, path, base_model:''});
+    const r2=await fetch('/custom-models',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({models:list})});
+    const j2=await r2.json(); if(j2.error) throw new Error(j2.error);
+    $('#modelPath').value=''; await loadModels(); toast('Saved as model — pick it from the dropdown anytime');
+  }catch(e){ showErr(e.message||'could not save model'); }
+};
+$('#removeCustomModel').onclick=async()=>{
+  if(!curModel.startsWith('custom:'))return;
+  const cid=curModel.slice('custom:'.length);
+  try{
+    const r=await fetch('/custom-models'); const j=await r.json();
+    const list=(j.models||[]).filter(e=>e.id!==cid);
+    await fetch('/custom-models',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({models:list})});
+    curModel=null; await loadModels(); toast('Removed');
+  }catch(e){ showErr('could not remove model'); }
+};
 
 async function loadModels(){
   try{
@@ -400,7 +429,8 @@ async function loadModels(){
         o.value=m.id; o.textContent=(m.cached?'':'⬇ ')+m.label; og.appendChild(o); }
       sel.appendChild(og);
     }
-    curModel=(models.find(m=>m.cached)||models[0]).id; sel.value=curModel;
+    if(!models.find(m=>m.id===curModel)) curModel=(models.find(m=>m.cached)||models[0]).id;
+    sel.value=curModel;
     $('#openFolder').title='Open '+saveDir; applyModelDefaults();
   }catch(e){ showErr('could not load models — is server.py running?'); }
 }

@@ -54,6 +54,7 @@ then open `http://localhost:7866`. Auto-exits after 20s idle (`MFLUX_NO_IDLE=1` 
 - Multi-seed batch — comma-separate seeds (`111,222,333`) to generate several variations in one run and pick the best
 - Negative prompt, quantization (3–8 bit), custom resolution
 - Saved prompts, chained edits, compare-to-original (hold `C`), revert, copy/save/download
+- Custom local models — point Settings → Model path at weights you already downloaded, "＋ Save as model" to add it to the picker permanently (based on whichever built-in model matches its shape)
 
 Full shortcut list is in the app (`?` key).
 

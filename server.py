@@ -27,6 +27,7 @@ PORT = 7866
 SAVE_DIR = os.path.expanduser("~/Pictures/mflux-paint")
 CFG_DIR  = os.path.expanduser("~/.mflux-paint")
 PROMPTS_FILE = os.path.join(CFG_DIR, "prompts.json")
+CUSTOM_MODELS_FILE = os.path.join(CFG_DIR, "custom_models.json")
 # auto-detect where `uv tool install mflux` / pipx put the mflux-generate-* binaries,
 # falling back to the Homebrew default if they're not on PATH (e.g. launched from a
 # GUI context that doesn't inherit the shell's PATH).
@@ -166,11 +167,61 @@ MODELS = {
 # genuinely different UI, so half-wiring them in would just be a broken menu entry.
 
 def available_models():
-    return [{"id": k, "label": m["label"], "group": m["group"],
-             "cached": m["cached"], "shape": m["shape"], "needs_mask": m["needs_mask"],
-             "steps": m["steps"], "guidance": m["guidance"], "gen_max": m["gen_max"],
-             "neg": m.get("neg", True)}
-            for k, m in MODELS.items()]
+    out = [{"id": k, "label": m["label"], "group": m["group"],
+            "cached": m["cached"], "shape": m["shape"], "needs_mask": m["needs_mask"],
+            "steps": m["steps"], "guidance": m["guidance"], "gen_max": m["gen_max"],
+            "neg": m.get("neg", True)}
+           for k, m in MODELS.items()]
+    for entry in load_custom_models():
+        spec = custom_spec(entry)
+        if spec is None: continue
+        out.append({"id": f"custom:{entry['id']}", "label": spec["label"], "group": "Custom",
+                     "cached": True, "shape": spec["shape"], "needs_mask": spec["needs_mask"],
+                     "steps": spec["steps"], "guidance": spec["guidance"], "gen_max": spec["gen_max"],
+                     "neg": spec.get("neg", True)})
+    return out
+
+# --- custom (locally-saved) models -----------------------------------------------
+def load_custom_models():
+    try:
+        with open(CUSTOM_MODELS_FILE) as f: return json.load(f)
+    except Exception:
+        return []
+
+def save_custom_models(items):
+    os.makedirs(CFG_DIR, exist_ok=True)
+    # only validate genuinely-new entries (id not already saved) - an existing entry
+    # whose drive happens to be unmounted right now must NOT get silently dropped
+    # just because someone else's remove/add action re-saved the whole list.
+    old_ids = {e.get("id") for e in load_custom_models()}
+    clean = []
+    for it in (items or [])[:100]:
+        template = str(it.get("template") or "")
+        path = str(it.get("path") or "").strip()
+        label = str(it.get("label") or "").strip()[:100]
+        if template not in MODELS or not path or not label: continue
+        eid = str(it.get("id") or os.urandom(4).hex())
+        if eid not in old_ids and not os.path.isdir(path):
+            raise ValueError(f"model path not found: {path}")
+        clean.append({"id": eid, "label": label, "template": template, "path": path,
+                       "base_model": str(it.get("base_model") or "").strip()[:100]})
+    with open(CUSTOM_MODELS_FILE, "w") as f: json.dump(clean, f, indent=2)
+    return clean
+
+def custom_spec(entry):
+    tmpl = MODELS.get(entry.get("template"))
+    if tmpl is None: return None
+    spec = {**tmpl, "label": entry["label"], "model": entry["path"], "cached": True}
+    if entry.get("base_model"): spec["base"] = entry["base_model"]
+    return spec
+
+def resolve_spec(mid):
+    if mid.startswith("custom:"):
+        cid = mid[len("custom:"):]
+        for entry in load_custom_models():
+            if entry.get("id") == cid: return custom_spec(entry)
+        return None
+    return MODELS.get(mid)
 
 # --- geometry helpers -----------------------------------------------------------
 def snap16(v): return max(16, int(round(v / 16)) * 16)
@@ -325,7 +376,7 @@ def handle_run(payload):
     prompt = (payload.get("prompt") or "").strip()
     if not prompt: raise ValueError("prompt is empty")
     mid = payload.get("model") or next(iter(MODELS))
-    spec = MODELS.get(mid)
+    spec = resolve_spec(mid)
     if not spec: raise ValueError(f"unknown model {mid}")
     if spec["shape"] != "txt2img" and not payload.get("image"):
         raise ValueError("this model needs an input image")
@@ -419,6 +470,8 @@ class H(http.server.BaseHTTPRequestHandler):
                 self._send(200, json.dumps(handle_progress(q)))
             elif self.path == "/prompts":
                 self._send(200, json.dumps(load_prompts()))
+            elif self.path == "/custom-models":
+                self._send(200, json.dumps({"models": load_custom_models(), "templates": list(MODELS)}))
             elif self.path in ("/", "/index.html"):
                 with open(os.path.join(HERE, "index.html"), "rb") as f:
                     self._send(200, f.read(), "text/html; charset=utf-8")
@@ -443,6 +496,8 @@ class H(http.server.BaseHTTPRequestHandler):
             if self.path == "/copy":      return self._send(200, json.dumps(handle_copy(self._json())))
             if self.path == "/open":      return self._send(200, json.dumps(open_folder()))
             if self.path == "/prompts":   return self._send(200, json.dumps(save_prompts(self._json())))
+            if self.path == "/custom-models":
+                return self._send(200, json.dumps({"models": save_custom_models(self._json().get("models"))}))
             self._send(404, b"not found", "text/plain")
         except Exception as e:
             self._send(500, json.dumps({"error": str(e)}))
