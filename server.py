@@ -301,6 +301,26 @@ def _collect_outputs(out):
     if not files: raise RuntimeError("mflux produced no output")
     return files
 
+def _local_model_spec(spec, tmpdir):
+    """mflux resolves a local -m path's architecture by substring-matching a known
+    alias (e.g. "klein-4b") inside the path string itself - --base-model is NOT
+    consulted for local paths on at least mflux-generate-flux2-edit (confirmed by
+    reading mflux's own source: flux2_edit_generate.py calls
+    ModelConfig.from_name(model_name=model_name) without forwarding base_model at
+    all). A renamed folder ("my-weights", "backup-8bit", ...) or a symlink then
+    fails with "Cannot infer base_model from <path>" even though --base-model was
+    given. Work around it: if the folder's own name doesn't already contain the
+    base alias, symlink it under one that does, so resolution always succeeds
+    regardless of what the user named their local copy."""
+    model, base = spec.get("model"), spec.get("base")
+    if not model or not base or not os.path.isdir(model):
+        return spec
+    if base.lower() in os.path.basename(model.rstrip("/")).lower():
+        return spec
+    link = os.path.join(tmpdir, base)
+    os.symlink(os.path.abspath(model), link)
+    return {**spec, "model": link}
+
 def run_edit_or_fill(spec, base, mask, prompt, steps, guidance, seeds, gen_max, jid, negative_prompt, quantize):
     cw, ch = base.size
     gw, gh = gen_size(cw, ch, gen_max)
@@ -311,6 +331,7 @@ def run_edit_or_fill(spec, base, mask, prompt, steps, guidance, seeds, gen_max, 
         if mask is not None and spec["shape"] in ("fill", "edit_mask"):
             gmask = os.path.join(d, "mask.png")
             mask.convert("RGB").resize((gw, gh)).save(gmask)   # white = fill/edit region
+        spec = _local_model_spec(spec, d)
         cmd = build_cmd(spec, prompt, steps, guidance, seeds, negative_prompt, quantize, gw, gh, out, gin, gmask)
         _popen_stream(cmd, steps, jid)
         return [Image.open(f).convert("RGB").resize((cw, ch)) for f in _collect_outputs(out)]
@@ -319,6 +340,7 @@ def run_txt2img(spec, prompt, steps, guidance, seeds, width, height, jid, negati
     gw, gh = snap16(width), snap16(height)
     with tempfile.TemporaryDirectory() as d:
         out = os.path.join(d, "out.png")
+        spec = _local_model_spec(spec, d)
         cmd = build_cmd(spec, prompt, steps, guidance, seeds, negative_prompt, quantize, gw, gh, out)
         _popen_stream(cmd, steps, jid)
         return [Image.open(f).convert("RGB") for f in _collect_outputs(out)]
