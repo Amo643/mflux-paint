@@ -285,6 +285,16 @@ def _run_job(jid, payload, spec):
         seed_raw = str(payload.get("seed") or "").strip()
         seeds = [s.strip() for s in seed_raw.split(",") if s.strip()] or None
 
+        # optional local weights override: mflux's own -m/--model accepts a HF repo
+        # name, org/model, OR a local filesystem path - if the user points us at a
+        # folder they already downloaded, pass it straight through instead of the
+        # preset name. --base-model stays as the architecture hint mflux needs.
+        model_path = (payload.get("model_path") or "").strip()
+        if model_path:
+            if not os.path.isdir(model_path):
+                raise ValueError(f"model path not found: {model_path}")
+            spec = {**spec, "model": model_path}
+
         if shape == "txt2img":
             width = int(payload.get("width") or 1024)
             height = int(payload.get("height") or 1024)

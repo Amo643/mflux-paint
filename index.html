@@ -266,6 +266,7 @@
         <option value="6">6-bit</option><option value="8">8-bit</option>
       </select></div>
     <div class="row"><label>Seed</label><input id="seed" type="text" placeholder="random, or 111,222 for a batch"></div>
+    <div class="row"><label>Model path</label><input id="modelPath" type="text" placeholder="optional, local weights folder" title="Overrides the picked model's weights with a local folder you already downloaded"></div>
     <div class="hint" id="sizeHint">⚠ Large sizes in fill mode swap RAM (24GB) → much slower.</div>
     <div class="hint" id="maskHint">✎ Paint a mask first — Fill only regenerates the painted area (unmasked = whole image).</div>
     <div class="hint" id="dlHint">⬇ Not downloaded yet — first run fetches the weights (needs internet).</div>
@@ -384,7 +385,8 @@ function updateRunEnabled(){ const m=modelById(curModel);
 $('#steps').oninput=$('#guid').oninput=syncSettingLabels;
 $('#size').onchange=()=>{ updateSizeHint(); updateAutoInfo(); };
 $('#resetSettings').onclick=()=>{ applyModelDefaults(); $('#size').value='0'; $('#seed').value='';
-  $('#negPrompt').value=''; $('#quant').value=''; $('#genW').value=1024; $('#genH').value=1024; updateAutoInfo(); };
+  $('#negPrompt').value=''; $('#quant').value=''; $('#genW').value=1024; $('#genH').value=1024;
+  $('#modelPath').value=''; updateAutoInfo(); };
 
 async function loadModels(){
   try{
@@ -561,6 +563,7 @@ async function run(){
     const neg=$('#negPrompt').value.trim(); if(neg) body.negative_prompt=neg;
     const q=$('#quant').value; if(q) body.quantize=q;
     const sd=$('#seed').value.trim(); if(sd) body.seed=sd;
+    const mp=$('#modelPath').value.trim(); if(mp) body.model_path=mp;
     if(m.shape==='txt2img'){
       body.width=+$('#genW').value; body.height=+$('#genH').value;
     } else {
