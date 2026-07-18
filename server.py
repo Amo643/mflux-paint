@@ -325,6 +325,11 @@ def _local_model_spec(spec, tmpdir):
 # counts as genuinely edited rather than VAE noise. Measured on real output: the
 # drift floor sits around 10-24 and the real edit plateaus above ~32.
 CHANGE_LEVEL = 32
+# Mean abs-difference over the whole frame above which an edit that has no local
+# hotspot is read as a deliberate gentle global change rather than VAE drift.
+# The two overlap below this, so a very faint global edit can still be reverted;
+# lower it if that happens, at the cost of letting more drift through.
+GLOBAL_LEVEL = 10
 
 def keep_untouched(out, base):
     """Restore the pixels a whole-image edit was never asked to change.
@@ -339,10 +344,17 @@ def keep_untouched(out, base):
     Instead, derive where the model actually changed something and composite the
     rest straight from the input, which makes untouched areas bit-exact.
     """
+    from PIL import ImageStat
     diff = ImageChops.difference(out, base).convert("L").filter(ImageFilter.GaussianBlur(2))
     m = diff.point(lambda v: 255 if v >= CHANGE_LEVEL else 0)
-    if sum(m.histogram()[255:]) > 0.6 * out.width * out.height:
+    px = out.width * out.height
+    changed = sum(m.histogram()[255:]) / px
+    if changed > 0.6:
         return out          # edit touched most of the frame - it was meant to be global
+    if changed < 0.02 and ImageStat.Stat(diff).mean[0] >= GLOBAL_LEVEL:
+        # nothing stands out locally, yet the whole frame moved: a gentle global
+        # edit ("warmer", "more contrast"). Compositing would revert it entirely.
+        return out
     f = feather_px(*base.size); dil = min(25, f * 2 + 1)
     m = m.filter(ImageFilter.MaxFilter(dil if dil % 2 else dil + 1))
     m = m.filter(ImageFilter.GaussianBlur(max(1, f // 2)))
