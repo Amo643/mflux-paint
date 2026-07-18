@@ -5,7 +5,7 @@ true inpaint (fill) and text-to-image, each with a different mflux CLI shape.
 Saved prompts, save-to-folder, model picker, multi-seed batches.
 """
 import base64, glob, http.server, io, json, os, re, shutil, subprocess, tempfile, socketserver, threading, time, urllib.parse
-from PIL import Image, ImageFilter
+from PIL import Image, ImageChops, ImageFilter
 
 # auto-shutdown: the open page pings /alive; no ping for IDLE_TIMEOUT -> exit.
 LAST_PING = [time.time()]
@@ -321,6 +321,33 @@ def _local_model_spec(spec, tmpdir):
     os.symlink(os.path.abspath(model), link)
     return {**spec, "model": link}
 
+# Abs-difference level (0-255, on a slightly blurred diff) above which a pixel
+# counts as genuinely edited rather than VAE noise. Measured on real output: the
+# drift floor sits around 10-24 and the real edit plateaus above ~32.
+CHANGE_LEVEL = 32
+
+def keep_untouched(out, base):
+    """Restore the pixels a whole-image edit was never asked to change.
+
+    Edit models re-encode the entire frame through the VAE, so areas the prompt
+    never mentioned still come back shifted - on a real panel, flat white 255
+    returned as 250 and untouched background moved ~10 RGB. Statistically
+    rescaling the output back to the input does not fix this: erasing black text
+    genuinely raises the image's mean, so matching means re-darkens everything
+    else instead.
+
+    Instead, derive where the model actually changed something and composite the
+    rest straight from the input, which makes untouched areas bit-exact.
+    """
+    diff = ImageChops.difference(out, base).convert("L").filter(ImageFilter.GaussianBlur(2))
+    m = diff.point(lambda v: 255 if v >= CHANGE_LEVEL else 0)
+    if sum(m.histogram()[255:]) > 0.6 * out.width * out.height:
+        return out          # edit touched most of the frame - it was meant to be global
+    f = feather_px(*base.size); dil = min(25, f * 2 + 1)
+    m = m.filter(ImageFilter.MaxFilter(dil if dil % 2 else dil + 1))
+    m = m.filter(ImageFilter.GaussianBlur(max(1, f // 2)))
+    return Image.composite(out, base, m)
+
 def run_edit_or_fill(spec, base, mask, prompt, steps, guidance, seeds, gen_max, jid, negative_prompt, quantize):
     cw, ch = base.size
     gw, gh = gen_size(cw, ch, gen_max)
@@ -382,6 +409,9 @@ def _run_job(jid, payload, spec):
             if mask is None or not mask.getbbox():
                 mask = Image.new("L", base.size, 255) if shape == "fill" else None
             results = run_edit_or_fill(spec, base, mask, prompt, steps, guidance, seeds, gen_max, jid, negative_prompt, quantize)
+            if mask is None and payload.get("keep_untouched", True):
+                # no user mask, so derive one from what the model actually changed
+                results = [keep_untouched(r, base) for r in results]
             if mask is not None:   # keep everything outside the mask pixel-exact (feathered seam)
                 f = feather_px(*base.size); dil = min(25, f * 2 + 1)
                 soft = mask.filter(ImageFilter.MaxFilter(dil if dil % 2 else dil + 1))
@@ -427,12 +457,15 @@ def handle_cancel(query):
     return {"ok": True}
 
 # --- saved prompts --------------------------------------------------------------
+SEED_PRESETS = [
+    "remove the text, leave everything else untouched",
+]
 def load_prompts():
     try:
         with open(PROMPTS_FILE) as f: d = json.load(f)
         return {"default": d.get("default", ""), "presets": d.get("presets", [])}
     except Exception:
-        return {"default": "", "presets": []}
+        return {"default": "", "presets": list(SEED_PRESETS)}
 def save_prompts(d):
     os.makedirs(CFG_DIR, exist_ok=True)
     data = {"default": (d.get("default") or "")[:2000],
